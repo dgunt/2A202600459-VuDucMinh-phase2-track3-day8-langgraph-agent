@@ -6,9 +6,9 @@ Students should extend the schema only when needed. Keep state lean and serializ
 from __future__ import annotations
 
 from enum import StrEnum
+from operator import add
 from typing import Annotated, Any, TypedDict
 
-from operator import add
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -41,17 +41,23 @@ class ApprovalDecision(BaseModel):
 class AgentState(TypedDict, total=False):
     """LangGraph state.
 
-    TODO(student): decide which fields should be append-only and which should be overwritten.
-    The current annotations give a safe starting point for auditability.
+    Scalar fields are overwritten by nodes. Append-only fields use LangGraph reducers so
+    audit and tool history is preserved across the graph.
     """
 
     thread_id: str
     scenario_id: str
+    expected_route: str
     query: str
     route: str
+    actual_route: str
     risk_level: str
     attempt: int
+    attempts: int
+    retry_count: int
     max_attempts: int
+    approved: bool
+    requires_approval: bool
     final_answer: str | None
     pending_question: str | None
     proposed_action: str | None
@@ -85,11 +91,17 @@ def initial_state(scenario: Scenario) -> AgentState:
     return {
         "thread_id": f"thread-{scenario.id}",
         "scenario_id": scenario.id,
+        "expected_route": scenario.expected_route.value,
         "query": scenario.query,
         "route": "",
+        "actual_route": "",
         "risk_level": "unknown",
         "attempt": 0,
+        "attempts": 0,
+        "retry_count": 0,
         "max_attempts": scenario.max_attempts,
+        "approved": False,
+        "requires_approval": scenario.requires_approval,
         "final_answer": None,
         "pending_question": None,
         "proposed_action": None,
